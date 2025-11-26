@@ -1,6 +1,5 @@
 from typing import List, Dict
 import asyncio
-import logging
 from langchain_core.documents import Document
 
 from app.schemas.document import DocumentType
@@ -16,9 +15,6 @@ from app.schemas.extraction import (
 )
 from app.core.llm import get_llm
 from app.core.prompts import EXTRACTION_PROMPTS
-from app.exceptions import ExtractionError
-
-logger = logging.getLogger(__name__)
 
 EXTRACTION_MODELS = {
     DocumentType.BILL: BillExtraction,
@@ -46,21 +42,18 @@ class DocumentExtractor:
         documents: List[Document]
     ) -> ExtractionResult:
         try:
-            logger.info(f"Starting extraction for {filename} (type: {document_type.value})")
-            
             doc_pages = [
                 doc for doc in documents 
                 if doc.metadata.get('source') == filename
             ]
             
             if not doc_pages:
-                logger.warning(f"No pages found for {filename}")
                 return ExtractionResult(
                     filename=filename,
                     document_type=document_type.value,
                     extraction_status="failed",
                     extracted_data=None,
-                    error_message=f"Document {filename} not found in loaded documents"
+                    error_message=f"Document {filename} not found"
                 )
             
             content = "\n\n--- Page Break ---\n\n".join([
@@ -76,8 +69,6 @@ class DocumentExtractor:
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, extractor.invoke, prompt)
             
-            logger.info(f"Successfully extracted data from {filename}")
-            
             return ExtractionResult(
                 filename=filename,
                 document_type=document_type.value,
@@ -87,7 +78,6 @@ class DocumentExtractor:
             )
             
         except Exception as e:
-            logger.error(f"Error extracting data from {filename}: {str(e)}")
             return ExtractionResult(
                 filename=filename,
                 document_type=document_type.value,
@@ -101,47 +91,29 @@ class DocumentExtractor:
         classification_result: ClassificationResult,
         documents: List[Document]
     ) -> ExtractionResponse:
-        try:
-            logger.info("Starting parallel document extraction")
+        tasks = []
+        for doc_type in DocumentType:
+            doc_info = getattr(classification_result, doc_type.value)
             
-            tasks = []
-            for doc_type in DocumentType:
-                doc_info = getattr(classification_result, doc_type.value)
-                
-                if doc_info.present:
-                    logger.info(f"Queuing extraction for {doc_info.document_file_name} (type: {doc_type.value})")
-                    task = self.extract_single(
-                        filename=doc_info.document_file_name,
-                        document_type=doc_type,
-                        documents=documents
-                    )
-                    tasks.append(task)
-            
-            if not tasks:
-                logger.warning("No documents marked as present for extraction")
-                return ExtractionResponse(
-                    results=[],
-                    total_extracted=0,
-                    successful_extractions=0,
-                    failed_extractions=0
+            if doc_info.present:
+                task = self.extract_single(
+                    filename=doc_info.document_file_name,
+                    document_type=doc_type,
+                    documents=documents
                 )
-            
-            logger.info(f"Executing {len(tasks)} extraction tasks in parallel")
-            results = await asyncio.gather(*tasks)
-            
-            successful = sum(1 for r in results if r.extraction_status == "success")
-            failed = sum(1 for r in results if r.extraction_status == "failed")
-            
-            logger.info(f"Extraction complete: {successful} successful, {failed} failed")
-            
+                tasks.append(task)
+        
+        if not tasks:
             return ExtractionResponse(
-                results=results,
-                total_extracted=len(results),
-                successful_extractions=successful,
-                failed_extractions=failed
+                results=[],
+                total_extracted=0,
             )
-            
-        except Exception as e:
-            logger.error(f"Batch extraction failed: {str(e)}")
-            raise ExtractionError(detail=f"Failed to extract documents: {str(e)}")
+        
+        results = await asyncio.gather(*tasks)
+        
+        
+        return ExtractionResponse(
+            results=results,
+            total_extracted=len(results),
+        )
 

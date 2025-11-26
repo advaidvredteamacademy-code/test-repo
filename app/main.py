@@ -1,41 +1,22 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import logging
 
 from app.config import settings
-from app.exceptions import setup_exception_handlers
-from app.api.v1 import api_router
+from app.api import claims, health
 
-logging.basicConfig(
-    level=settings.LOG_LEVEL,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    logger.info("Application startup")
-    yield
-    logger.info("Application shutdown")
-
-app = FastAPI(
-    title=settings.APP_NAME,
-    version=settings.API_VERSION,
-    lifespan=lifespan
-)
+app = FastAPI(title=settings.APP_NAME)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-setup_exception_handlers(app)
-
-app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+# Direct routes - no versioning
+app.include_router(health.router, tags=["health"])
+app.include_router(claims.router, tags=["claims"])
 
 if __name__ == "__main__":
     import uvicorn
@@ -43,6 +24,6 @@ if __name__ == "__main__":
         "app.main:app",
         host=settings.HOST,
         port=settings.PORT,
-        reload=settings.DEBUG
+        reload=True
     )
 

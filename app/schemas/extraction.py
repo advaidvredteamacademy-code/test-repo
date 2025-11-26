@@ -70,6 +70,4 @@ class ExtractionResult(BaseModel):
 class ExtractionResponse(BaseModel):
     results: List[ExtractionResult] = Field(description="List of extraction results")
     total_extracted: int = Field(description="Total number of documents extracted")
-    successful_extractions: int = Field(description="Number of successful extractions")
-    failed_extractions: int = Field(description="Number of failed extractions")
 
