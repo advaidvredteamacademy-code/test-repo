@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     LLM_MODEL: str = "gemini-2.5-flash"
     LLM_TEMPERATURE: float = 0.0
     LLM_MAX_RETRIES: int = 3
+
+    #PASSWORD
+    API_PASSWORD: str
     
     # File upload settings
     UPLOAD_DIR: str = "uploaded_documents"

@@ -1,5 +1,6 @@
 from typing import List, Dict
 import asyncio
+import logging
 from langchain_core.documents import Document
 
 from app.schemas.document import DocumentType
@@ -15,6 +16,8 @@ from app.schemas.extraction import (
 )
 from app.core.llm import get_llm
 from app.core.prompts import EXTRACTION_PROMPTS
+
+logger = logging.getLogger(__name__)
 
 EXTRACTION_MODELS = {
     DocumentType.BILL: BillExtraction,
@@ -42,6 +45,7 @@ class DocumentExtractor:
         documents: List[Document]
     ) -> ExtractionResult:
         try:
+            logger.info(f"extracting {document_type.value} from {filename}")
             doc_pages = [
                 doc for doc in documents 
                 if doc.metadata.get('source') == filename
@@ -69,6 +73,7 @@ class DocumentExtractor:
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, extractor.invoke, prompt)
             
+            logger.info(f"extraction successful for {filename}")
             return ExtractionResult(
                 filename=filename,
                 document_type=document_type.value,
@@ -78,6 +83,7 @@ class DocumentExtractor:
             )
             
         except Exception as e:
+            logger.error(f"extraction failed for {filename}: {str(e)}")
             return ExtractionResult(
                 filename=filename,
                 document_type=document_type.value,
@@ -104,14 +110,16 @@ class DocumentExtractor:
                 tasks.append(task)
         
         if not tasks:
+            logger.info("no documents to extract")
             return ExtractionResponse(
                 results=[],
                 total_extracted=0,
             )
         
+        logger.info(f"starting batch extraction for {len(tasks)} documents")
         results = await asyncio.gather(*tasks)
         
-        
+        logger.info(f"batch extraction complete - {len(results)} documents processed")
         return ExtractionResponse(
             results=results,
             total_extracted=len(results),

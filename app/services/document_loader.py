@@ -8,6 +8,9 @@ from langchain_community.document_loaders import PyPDFLoader
 
 from app.config import settings
 
+import logging
+logger = logging.getLogger(__name__)
+
 class DocumentLoaderService:
     def __init__(self):
         self.upload_dir = Path(settings.UPLOAD_DIR)
@@ -32,6 +35,7 @@ class DocumentLoaderService:
         filename = f"doc_{doc_number}{extension}"
         filepath = self.upload_dir / filename
         
+        logger.info(f"saving {file.filename} as {filename}")
         content = await file.read()
         with open(filepath, 'wb') as f:
             f.write(content)
@@ -44,10 +48,14 @@ class DocumentLoaderService:
         if not loader_class:
             raise ValueError(f"No loader available for {extension}")
         
+        logger.info(f"loading {filepath.name}")
         loader = loader_class(str(filepath))
-        return loader.load()
+        docs = loader.load()
+        logger.info(f"loaded {len(docs)} pages from {filepath.name}")
+        return docs
     
     async def load_documents(self, files: List[UploadFile]) -> List[Document]:
+        logger.info(f"processing {len(files)} file(s)")
         for file in files:
             self.validate_file(file)
         
@@ -73,6 +81,7 @@ class DocumentLoaderService:
                 doc.metadata["page"] = page_num
             results.extend(docs)
         
+        logger.info(f"done - processed {len(results)} total pages")
         return results
     
     def _get_next_doc_number(self) -> int:

@@ -1,10 +1,13 @@
 from langchain_core.documents import Document
 from typing import List
 import asyncio
+import logging
 
 from app.schemas.fast_claim import FastClaimResponse, ClassificationAndExtraction
 from app.core.prompts import UNIFIED_FAST_CLAIM_PROMPT
 from app.core.llm import get_llm_with_thinking
+
+logger = logging.getLogger(__name__)
 
 class FastClaimGenerator:
     """
@@ -29,6 +32,7 @@ class FastClaimGenerator:
         Returns:
             FastClaimResponse with combined results and thinking process
         """
+        logger.info(f"starting fast claim generation with {len(documents)} document pages")
         # Combine all documents into a single text
         documents_text = "\n\n".join([
             f"=== Document: {doc.metadata.get('source', 'Unknown')}, Page: {doc.metadata.get('page', 'Unknown')} ===\n{doc.page_content}"
@@ -67,6 +71,7 @@ class FastClaimGenerator:
             elif isinstance(content, str):
                 thinking_text = content
         
+        logger.info("fast claim generation complete")
         return FastClaimResponse(
             result=parsed_result,
             thinking=thinking_text
