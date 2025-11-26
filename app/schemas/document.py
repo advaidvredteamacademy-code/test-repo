@@ -13,7 +13,8 @@ REQUIRED_DOCUMENTS: List[DocumentType] = [
     DocumentType.BILL,
     DocumentType.DISCHARGE_SUMMARY,
     DocumentType.ID_CARD,
-    DocumentType.CLAIM_FORM
+    DocumentType.CLAIM_FORM,
+    DocumentType.PHARMACY_BILL
 ]
 
 def get_required_document_types() -> List[str]:
