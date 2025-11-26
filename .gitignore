@@ -134,7 +134,6 @@ dmypy.json
 *.pdf
 *.docx
 *.doc
-*.txt
 data/
 uploads/
 
